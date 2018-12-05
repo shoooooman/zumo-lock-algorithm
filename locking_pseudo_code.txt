@@ -1,0 +1,51 @@
+P1: get paths, get locks, move, release
+const:
+    MAX_LOCKS: the number of locks robots can request once
+
+var:
+    cells <- {0}: cells the robot will require locks for
+    reach <- true: if a robot have reached its destinaton
+    rd <- inf: the rest of distance from the robot to its destination
+    cp <- (0, 0): current position of the robot
+    waiting_from <- {0}: robots from which the robot is waiting for reply
+    locks <- {0}: cells the robot locks
+    num_of_get_locks <- 0: number of locks the robot got
+
+while (true)
+    wait (reach = true);
+    dest <- get_dest();
+    cells <- get_path(cp, dest);
+    reach <- false;
+    while (cells != {0})
+        for each j in {1, ..., n} \ {i}
+            send REQUEST(i, cells, cp) to p_j;
+        wait (waiting_from  = {0}); // wait until get a reply
+        locks <- locks and cells[0 .. num_of_get_locks];
+        cells <- cells \ {cells[0 .. num_of_get_locks]};
+        send MOVE(locks) to p_i;
+
+when REPLY(j, ok) is received do
+    num_of_get_locks <- min(num_of_get_locks, ok); // get min of all other nodes' accepted
+    waiting_from <- waiting_from \ {j};
+
+when passed cell c do
+    locks <- locks \ {c}; // decremental release
+    cp <- get_current_pos();
+    if (cp = dest) reach <- true;
+
+
+P2: reply other robots request
+const:
+    NUM_ROBOTS: the number of robots in this system
+var:
+    accepted <- 0: the number of cells the robot can accepte locks
+
+when REQUEST(j, rc, pos) is received do
+    accepted <- 0;
+    for each c in rc
+        prio_i <- ((c not in cells) and (c not in locks)) or ((c in cells) and (c not in locks) and (<pos, c> < <cp, c>)) // <a, b> represent the distance between a and b
+        if (prio_i) accepted <- accepted + 1;
+        else
+            send REPLY(i, accepted) to p_j;
+            break;
+    send REPLY(i, accepted) to p_j;
