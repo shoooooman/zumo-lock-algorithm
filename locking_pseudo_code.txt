@@ -1,3 +1,8 @@
+var:
+    lrd <- 0: last request date
+    clock <- 0: logical clock
+    nrs <- [0, ..., 0]: number of requests for each cell
+
 P1: get paths, get locks, move, release
 const:
     MAX_LOCKS: the number of locks robots can request once
@@ -17,10 +22,15 @@ while (true)
     cells <- get_path(cp, dest);
     reach <- false;
     while (cells != {0})
+        for each cell in cells
+            nrs[cell] <- nrc[cell] + 1;
+        lrd <- clock + 1;
         for each j in {1, ..., n} \ {i}
-            send REQUEST(i, cells, cp) to p_j;
+            send REQUEST(i, lrd, cells, cp, dest, nrs) to p_j;
         wait (waiting_from  = {0}); // wait until get a reply
         locks <- locks and cells[0 .. num_of_get_locks];
+        for each cell in cells[0 .. num_of_get_locks]
+            nrs[cell] <- 0;
         cells <- cells \ {cells[0 .. num_of_get_locks]};
         send MOVE(locks) to p_i;
 
@@ -40,11 +50,32 @@ const:
 var:
     accepted <- 0: the number of cells the robot can accepte locks
 
-when REQUEST(j, rc, pos) is received do
+when REQUEST(j, k, rc, pos, d, cnt) is received do
     accepted <- 0;
     for each c in rc
-        prio_i <- ((c not in cells) and (c not in locks)) or ((c in cells) and (c not in locks) and (<pos, c> < <cp, c>)) // <a, b> represent the distance between a and b
-        if (prio_i) accepted <- accepted + 1;
+        if      (c in locks)
+            prio_i <- true;
+        else if (c in cells)
+            if      (lrd < k)
+                prio_i <- true;
+            else if (lrd = k)
+                if      (<cp, c> < <pos, c>) // <a, b> represent the distance between a and b
+                    prio_i <- true;
+                else if (nrs[c] > cnt[c])
+                    prio_i <- true;
+                else if (<c, dest> > <c, d>)
+                    prio_i <- true;
+                else if (i < j)
+                    prio_i <- true;
+                else
+                    prio_i <- false;
+            else
+                prio_i <- false;
+        else
+            prio_i <- false;
+
+        if (prio_i)
+            accepted <- accepted + 1;
         else
             send REPLY(i, accepted) to p_j;
             break;
