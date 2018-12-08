@@ -1,20 +1,20 @@
 var:
+    cells <- {0}: cells the robot will require locks for
+    locks <- {0}: cells the robot locks
     lrd <- 0: last request date
-    clock <- 0: logical clock
     nrs <- [0, ..., 0]: number of requests for each cell
+    reach <- true: if a robot have reached its destinaton
+    cp <- (0, 0): current position of the robot
 
 P1: get paths, get locks, move, release
 const:
     MAX_LOCKS: the number of locks robots can request once
 
 var:
-    cells <- {0}: cells the robot will require locks for
-    reach <- true: if a robot have reached its destinaton
     rd <- inf: the rest of distance from the robot to its destination
-    cp <- (0, 0): current position of the robot
     waiting_from <- {0}: robots from which the robot is waiting for reply
-    locks <- {0}: cells the robot locks
     num_of_get_locks <- 0: number of locks the robot got
+    clock <- 0: logical clock
 
 while (true)
     wait (reach = true);
@@ -38,17 +38,13 @@ when REPLY(j, ok) is received do
     num_of_get_locks <- min(num_of_get_locks, ok); // get min of all other nodes' accepted
     waiting_from <- waiting_from \ {j};
 
-when passed cell c do
-    locks <- locks \ {c}; // decremental release
-    cp <- get_current_pos();
-    if (cp = dest) reach <- true;
-
 
 P2: reply other robots request
 const:
     NUM_ROBOTS: the number of robots in this system
 var:
     accepted <- 0: the number of cells the robot can accepte locks
+    prio_i: priority of this robot
 
 when REQUEST(j, k, rc, pos, d, cnt) is received do
     accepted <- 0;
@@ -80,3 +76,11 @@ when REQUEST(j, k, rc, pos, d, cnt) is received do
             send REPLY(i, accepted) to p_j;
             break;
     send REPLY(i, accepted) to p_j;
+
+
+P3: release locks
+
+when passed cell c do
+    locks <- locks \ {c}; // decremental release
+    cp <- get_current_pos();
+    if (cp = dest) reach <- true;
