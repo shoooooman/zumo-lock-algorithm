@@ -1,6 +1,7 @@
 var:
-    cells <- {0}: cells the robot will require locks for
-    locks <- {0}: cells the robot locks
+    path <- {0}: rqs the robot will move on
+    rqs  <- {0}: rqs the robot is reqesting for locks
+    locks <- {0}: rqs the robot locks
     lrd <- 0: last request date
     nrs <- [0, ..., 0]: number of requests for each cell
     reach <- true: if a robot have reached its destinaton
@@ -19,19 +20,21 @@ var:
 while (true)
     wait (reach = true);
     dest <- get_dest();
-    cells <- get_path(cp, dest);
+    path <- get_path(cp, dest);
     reach <- false;
-    while (cells != {0})
-        for each cell in cells
+    while (path != {0})
+        rqs <- rqs and path[0 .. MAX_LOCKS-1-num_of_get_locks];
+        path <- path \ rqs;
+        for each cell in rqs
             nrs[cell] <- nrc[cell] + 1;
         lrd <- clock + 1;
         for each j in {1, ..., n} \ {i}
-            send REQUEST(i, lrd, cells, cp, dest, nrs) to p_j;
+            send REQUEST(i, lrd, rqs, cp, dest, nrs) to p_j;
         wait (waiting_from  = {0}); // wait until get a reply
-        locks <- locks and cells[0 .. num_of_get_locks];
-        for each cell in cells[0 .. num_of_get_locks]
+        locks <- locks and rqs[0 .. num_of_get_locks-1];
+        for each cell in rqs[0 .. num_of_get_locks-1]
             nrs[cell] <- 0;
-        cells <- cells \ {cells[0 .. num_of_get_locks]};
+        rqs <- rqs \ {rqs[0 .. num_of_get_locks-1]};
         send MOVE(locks) to p_i;
 
 when REPLY(j, ok) is received do
@@ -51,7 +54,7 @@ when REQUEST(j, k, rc, pos, d, cnt) is received do
     for each c in rc
         if      (c in locks)
             prio_i <- true;
-        else if (c in cells)
+        else if (c in rqs)
             if      (lrd < k)
                 prio_i <- true;
             else if (lrd = k)
